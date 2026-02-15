@@ -1,5 +1,5 @@
 {
-  "name": "phone-a-friend",
+  "name": "@bexelbie/phone-a-friend",
   "version": "0.1.0",
   "description": "MCP server that lets VS Code Copilot Chat invoke Copilot CLI with a different model",
   "type": "module",
@@ -7,6 +7,10 @@
   "bin": {
     "phone-a-friend": "dist/index.js"
   },
+  "files": [
+    "dist/",
+    "!dist/test/"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",

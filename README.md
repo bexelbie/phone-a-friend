@@ -53,7 +53,7 @@ npm run build
 ### As an npm package
 
 ```bash
-npm install -g phone-a-friend
+npm install -g @bexelbie/phone-a-friend
 ```
 
 ## Configuration
