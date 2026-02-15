@@ -1,0 +1,144 @@
+name: Check for new models
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Every Monday at 9am UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-models:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Copilot CLI
+        run: curl -fsSL https://gh.io/copilot-install | bash
+
+      - name: Get copilot version
+        id: version
+        run: |
+          echo "version=$(copilot --version 2>&1 | head -1)" >> $GITHUB_OUTPUT
+
+      - name: Extract models from copilot CLI
+        id: cli_models
+        run: |
+          # Sorted for comparison
+          copilot --help 2>&1 | sed -n '/--model <model>/,/^  --/p' | grep -oE '"[^"]+"' | tr -d '"' | sort > /tmp/cli_models_sorted.txt
+          # Natural order for replacement
+          copilot --help 2>&1 | sed -n '/--model <model>/,/^  --/p' | grep -oE '"[^"]+"' | tr -d '"' > /tmp/cli_models_ordered.txt
+          echo "Discovered $(wc -l < /tmp/cli_models_sorted.txt) models"
+
+      - name: Extract models from source
+        run: |
+          sed -n '/AVAILABLE_MODELS/,/\] as const/p' src/util.ts | grep -oE '"[^"]+"' | tr -d '"' | sort > /tmp/src_models_sorted.txt
+          echo "Source has $(wc -l < /tmp/src_models_sorted.txt) models"
+
+      - name: Compare model lists
+        id: compare
+        run: |
+          NEW=$(comm -23 /tmp/cli_models_sorted.txt /tmp/src_models_sorted.txt)
+          REMOVED=$(comm -13 /tmp/cli_models_sorted.txt /tmp/src_models_sorted.txt)
+
+          if [ -n "$NEW" ] || [ -n "$REMOVED" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Models differ — will create PR"
+            echo "New: $NEW"
+            echo "Removed: $REMOVED"
+
+            {
+              echo "Automated update from \`check-models\` workflow."
+              echo ""
+              echo "**Copilot CLI version:** \`${{ steps.version.outputs.version }}\`"
+              echo ""
+              echo "To verify locally:"
+              echo '```bash'
+              echo "copilot --version"
+              echo "copilot --help 2>&1 | sed -n '/--model <model>/,/^  --/p' | grep -oE '\"[^\"]+\"' | tr -d '\"'"
+              echo '```'
+              echo ""
+              if [ -n "$NEW" ]; then
+                echo "**Models added:**"
+                echo '```'
+                echo "$NEW"
+                echo '```'
+                echo ""
+              fi
+              if [ -n "$REMOVED" ]; then
+                echo "**Models removed:**"
+                echo '```'
+                echo "$REMOVED"
+                echo '```'
+                echo ""
+              fi
+              echo "**Note:** The README model list may also need updating."
+            } > /tmp/pr_body.md
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "Model lists match — nothing to do."
+          fi
+
+      - name: Update source file
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          # Generate new AVAILABLE_MODELS block
+          {
+            echo 'export const AVAILABLE_MODELS = ['
+            while IFS= read -r model; do
+              echo "  \"$model\","
+            done < /tmp/cli_models_ordered.txt
+            echo '] as const;'
+          } > /tmp/new_models_block.txt
+
+          # Replace the block in util.ts
+          awk '
+            /^export const AVAILABLE_MODELS = \[/ {
+              while ((getline line < "/tmp/new_models_block.txt") > 0) print line
+              close("/tmp/new_models_block.txt")
+              skip = 1
+              next
+            }
+            skip && /^\] as const;/ {
+              skip = 0
+              next
+            }
+            !skip { print }
+          ' src/util.ts > /tmp/util_new.ts && mv /tmp/util_new.ts src/util.ts
+
+      - name: Build and test
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          npm ci
+          npm run build
+          node --test dist/test/index.test.js dist/test/git.test.js
+
+      - name: Create pull request
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          BRANCH="auto/update-models-$(date +%Y%m%d)"
+
+          # Check if a PR already exists for this
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            echo "PR #$EXISTING already open — skipping"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add src/util.ts
+          git commit -m "Update AVAILABLE_MODELS from copilot CLI"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "Update AVAILABLE_MODELS from copilot CLI" \
+            --body-file /tmp/pr_body.md \
+            --base main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
