@@ -2,11 +2,7 @@
 // ABOUTME: MCP server that invokes Copilot CLI with a different model.
 // ABOUTME: Enables cross-model subagent calls from VS Code Copilot Chat.
 
-import { execFile, spawn } from "node:child_process";
-import { readFile, unlink, mkdir, rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { promisify } from "node:util";
+import { resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -17,194 +13,16 @@ import {
   generateWorktreePath,
   promptSizeWarning,
 } from "./util.js";
-
-const execFileAsync = promisify(execFile);
-
-/**
- * Verifies that a directory is inside a git repository.
- */
-async function isGitRepo(dir: string): Promise<boolean> {
-  try {
-    await execFileAsync("git", ["rev-parse", "--git-dir"], { cwd: dir });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Gets the root of the git repository containing the given directory.
- */
-async function getGitRoot(dir: string): Promise<string> {
-  const { stdout } = await execFileAsync(
-    "git",
-    ["rev-parse", "--show-toplevel"],
-    { cwd: dir }
-  );
-  return stdout.trim();
-}
-
-/**
- * Creates a git worktree at the specified path, branching from HEAD.
- */
-async function createWorktree(
-  repoDir: string,
-  worktreePath: string
-): Promise<void> {
-  const worktreesDir = join(worktreePath, "..");
-  if (!existsSync(worktreesDir)) {
-    await mkdir(worktreesDir, { recursive: true });
-  }
-
-  const branchName = `paf/${worktreePath.split("/").pop()}`;
-  await execFileAsync(
-    "git",
-    ["worktree", "add", "-B", branchName, worktreePath, "HEAD"],
-    { cwd: repoDir }
-  );
-}
-
-/**
- * Removes a git worktree and its associated branch.
- */
-async function removeWorktree(
-  repoDir: string,
-  worktreePath: string
-): Promise<void> {
-  const branchName = `paf/${worktreePath.split("/").pop()}`;
-  try {
-    await execFileAsync(
-      "git",
-      ["worktree", "remove", worktreePath, "--force"],
-      { cwd: repoDir }
-    );
-  } catch {
-    // If worktree remove fails, try manual cleanup
-    if (existsSync(worktreePath)) {
-      await rm(worktreePath, { recursive: true, force: true });
-    }
-    try {
-      await execFileAsync("git", ["worktree", "prune"], { cwd: repoDir });
-    } catch {
-      // Best effort
-    }
-  }
-  try {
-    await execFileAsync("git", ["branch", "-D", branchName], {
-      cwd: repoDir,
-    });
-  } catch {
-    // Branch may not exist or may already be deleted
-  }
-}
-
-/**
- * Runs the Copilot CLI in non-interactive mode inside the worktree.
- * Stdout/stderr are discarded — the response comes from the
- * message-in-a-bottle file.
- */
-async function runCopilotCli(
-  worktreePath: string,
-  prompt: string,
-  model: string
-): Promise<{ exitCode: number; stderr: string }> {
-  return new Promise((resolvePromise) => {
-    const args = [
-      "-p",
-      prompt,
-      "--model",
-      model,
-      "--allow-all",
-      "--deny-tool",
-      "shell(git push*)",
-      "--no-alt-screen",
-      "--no-color",
-    ];
-
-    const child = spawn("copilot", args, {
-      cwd: worktreePath,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        NO_COLOR: "1",
-        TERM: "dumb",
-      },
-    });
-
-    let stderr = "";
-    child.stderr?.on("data", (data: Buffer) => {
-      stderr += data.toString();
-    });
-
-    // Drain stdout so the process doesn't block
-    child.stdout?.on("data", () => {});
-
-    child.on("close", (code) => {
-      resolvePromise({ exitCode: code ?? 1, stderr });
-    });
-
-    child.on("error", (err) => {
-      resolvePromise({ exitCode: 1, stderr: err.message });
-    });
-  });
-}
-
-/**
- * Returns the current HEAD commit SHA for a git directory.
- */
-async function getHeadSha(dir: string): Promise<string> {
-  const { stdout } = await execFileAsync(
-    "git",
-    ["rev-parse", "HEAD"],
-    { cwd: dir }
-  );
-  return stdout.trim();
-}
-
-/**
- * Captures all changes in the worktree as a unified diff.
- * Stages everything first to include untracked files, then diffs
- * against the given base SHA (the original commit before the agent ran).
- * This ensures committed changes are also captured.
- */
-async function captureChanges(
-  worktreePath: string,
-  baseSha: string
-): Promise<string> {
-  // Stage everything so untracked files appear in the diff
-  try {
-    await execFileAsync("git", ["add", "-A"], { cwd: worktreePath });
-  } catch {
-    // May fail if nothing to add
-  }
-
-  try {
-    const { stdout } = await execFileAsync(
-      "git",
-      ["diff", "--staged", baseSha],
-      { cwd: worktreePath, maxBuffer: 10 * 1024 * 1024 }
-    );
-    return stdout;
-  } catch {
-    return "";
-  }
-}
-
-/**
- * Reads and removes the message-in-a-bottle response file.
- */
-async function readAndRemoveResponse(
-  worktreePath: string
-): Promise<string | null> {
-  const responsePath = join(worktreePath, RESPONSE_FILENAME);
-  try {
-    const content = await readFile(responsePath, "utf-8");
-    await unlink(responsePath);
-    return content;
-  } catch {
-    return null;
-  }
-}
+import {
+  isGitRepo,
+  getGitRoot,
+  createWorktree,
+  removeWorktree,
+  runCopilotCli,
+  getHeadSha,
+  captureChanges,
+  readAndRemoveResponse,
+} from "./git.js";
 
 // --- MCP Server Setup ---
 
@@ -297,7 +115,7 @@ server.registerTool(
       );
 
       // Read the response file before diffing
-      const response = await readAndRemoveResponse(worktreePath);
+      const response = await readAndRemoveResponse(worktreePath, RESPONSE_FILENAME);
 
       // Capture all file changes
       const diff = await captureChanges(worktreePath, baseSha);
