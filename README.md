@@ -28,7 +28,7 @@ GitHub Copilot CLI does not provide a way to retrieve just the agent's final res
 
 ## Prerequisites
 
-- **Node.js** >= 20.0.0
+- **Node.js** >= 22.0.0
 - **GitHub Copilot CLI** — installed, configured, and authenticated. See [About GitHub Copilot in the CLI](https://docs.github.com/en/copilot/github-copilot-in-the-cli/about-github-copilot-in-the-cli) for setup instructions.
 - **Git** — for worktree management
 - A **git repository** to work in (the tool operates on git repos)
@@ -39,53 +39,23 @@ Verify Copilot CLI is working:
 copilot --help
 ```
 
-## Installation
+## Setup
 
-### From source
+In VS Code, open the Command Palette and run `MCP: Add Server...`, select `npm Package`, and enter `@bexelbie/phone-a-friend`.
 
-```bash
-git clone https://github.com/YOUR_USERNAME/phone-a-friend.git
-cd phone-a-friend
-npm install
-npm run build
-```
-
-### As an npm package
-
-```bash
-npm install -g @bexelbie/phone-a-friend
-```
-
-## Configuration
-
-Add to your VS Code MCP configuration (`.vscode/mcp.json` in your workspace, or user-level via `MCP: Open User Configuration`):
+Or add it manually to `.vscode/mcp.json` (workspace) or via `MCP: Open User Configuration` (global):
 
 ```json
 {
   "servers": {
-    "phoneAFriend": {
+    "phone-a-friend": {
       "type": "stdio",
-      "command": "node",
-      "args": ["/absolute/path/to/phone-a-friend/dist/index.js"]
+      "command": "npx",
+      "args": ["@bexelbie/phone-a-friend"]
     }
   }
 }
 ```
-
-Or if installed globally via npm:
-
-```json
-{
-  "servers": {
-    "phoneAFriend": {
-      "type": "stdio",
-      "command": "phone-a-friend"
-    }
-  }
-}
-```
-
-See [Use MCP servers in VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) for details on MCP server configuration.
 
 ## Usage
 
@@ -168,6 +138,8 @@ You can direct the model to pass any model name directly — GitHub Copilot CLI 
 ## Development
 
 ```bash
+git clone https://github.com/bexelbie/phone-a-friend.git
+cd phone-a-friend
 npm install
 npm run build     # Compile TypeScript
 npm test          # Run tests

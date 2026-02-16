@@ -2,6 +2,10 @@
   "name": "@bexelbie/phone-a-friend",
   "version": "0.1.0",
   "description": "MCP server that lets VS Code Copilot Chat invoke Copilot CLI with a different model",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bexelbie/phone-a-friend"
+  },
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -27,7 +31,7 @@
   ],
   "license": "MIT",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0"
