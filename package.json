@@ -1,6 +1,6 @@
 {
   "name": "@bexelbie/phone-a-friend",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server that lets VS Code Copilot Chat invoke Copilot CLI with a different model",
   "repository": {
     "type": "git",
