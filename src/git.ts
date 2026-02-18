@@ -163,7 +163,7 @@ export async function getHeadSha(dir: string): Promise<string> {
 export async function captureChanges(
   worktreePath: string,
   baseSha: string
-): Promise<string> {
+): Promise<string | null> {
   // Stage everything so untracked files appear in the diff
   try {
     await execFileAsync("git", ["add", "-A"], { cwd: worktreePath });
@@ -178,8 +178,12 @@ export async function captureChanges(
       { cwd: worktreePath, maxBuffer: 10 * 1024 * 1024 }
     );
     return stdout;
-  } catch {
-    return "";
+  } catch (err) {
+    console.error(
+      `[phone-a-friend] diff capture failed in ${worktreePath}:`,
+      err instanceof Error ? err.message : err
+    );
+    return null;
   }
 }
 

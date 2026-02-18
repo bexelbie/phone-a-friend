@@ -150,7 +150,14 @@ server.registerTool(
       // Capture and include file changes only in default mode
       if (toolMode === "default") {
         const diff = await captureChanges(worktreePath, baseSha);
-        if (diff.trim()) {
+        if (diff === null) {
+          parts.push(
+            "## File Changes\n\n" +
+              "**Warning:** Diff capture failed (output may have exceeded the " +
+              "10 MB buffer limit). The agent may have made changes that are " +
+              "not shown here."
+          );
+        } else if (diff.trim()) {
           parts.push("## File Changes (unified diff)\n\n```diff\n" + diff + "\n```");
         } else {
           parts.push("## File Changes\n\nNo file changes were made.");

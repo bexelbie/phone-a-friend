@@ -204,6 +204,7 @@ describe("captureChanges", () => {
       await createWorktree(tempRepo, wtPath);
       const baseSha = await getHeadSha(wtPath);
       const diff = await captureChanges(wtPath, baseSha);
+      assert.ok(diff !== null);
       assert.equal(diff.trim(), "");
     } finally {
       await removeWorktree(tempRepo, wtPath);
@@ -217,6 +218,7 @@ describe("captureChanges", () => {
       const baseSha = await getHeadSha(wtPath);
       await writeFile(join(wtPath, "new-file.txt"), "new content\n");
       const diff = await captureChanges(wtPath, baseSha);
+      assert.ok(diff !== null);
       assert.ok(diff.includes("new-file.txt"));
       assert.ok(diff.includes("new content"));
     } finally {
@@ -231,6 +233,7 @@ describe("captureChanges", () => {
       const baseSha = await getHeadSha(wtPath);
       await writeFile(join(wtPath, "README.md"), "# Changed\n");
       const diff = await captureChanges(wtPath, baseSha);
+      assert.ok(diff !== null);
       assert.ok(diff.includes("README.md"));
       assert.ok(diff.includes("Changed"));
     } finally {
@@ -250,8 +253,21 @@ describe("captureChanges", () => {
       await execFileAsync("git", ["commit", "-m", "agent work"], { cwd: wtPath });
 
       const diff = await captureChanges(wtPath, baseSha);
+      assert.ok(diff !== null);
       assert.ok(diff.includes("committed.txt"));
       assert.ok(diff.includes("agent output"));
+    } finally {
+      await removeWorktree(tempRepo, wtPath);
+    }
+  });
+
+  it("returns null when git diff fails", async () => {
+    const wtPath = join(tempRepo, ".worktrees", "test-diff-fail");
+    try {
+      await createWorktree(tempRepo, wtPath);
+      // Pass an invalid SHA to force git diff to fail
+      const result = await captureChanges(wtPath, "0000000000000000000000000000000000000000");
+      assert.equal(result, null);
     } finally {
       await removeWorktree(tempRepo, wtPath);
     }
