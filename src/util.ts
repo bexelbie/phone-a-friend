@@ -3,6 +3,9 @@
 
 import { join } from "node:path";
 
+export const TOOL_MODES = ["default", "query"] as const;
+export type ToolMode = (typeof TOOL_MODES)[number];
+
 export const RESPONSE_FILENAME = ".paf-response.md";
 
 export const AVAILABLE_MODELS = [
@@ -27,20 +30,37 @@ export const AVAILABLE_MODELS = [
 
 /**
  * Wraps the user's prompt with instructions for the subagent about
- * the message-in-a-bottle response file and push restrictions.
+ * the message-in-a-bottle response file and operating constraints.
+ * In query mode, tells the subagent changes will be discarded.
  */
-export function wrapPrompt(userPrompt: string): string {
+export function wrapPrompt(userPrompt: string, mode: ToolMode = "default"): string {
+  if (mode === "query") {
+    return `## CRITICAL INSTRUCTIONS — READ BEFORE DOING ANYTHING
+
+You are operating as a subagent inside an isolated git worktree for reference only. Any file changes you make will be discarded. Focus on analysis and your written response.
+
+1. **Do NOT modify files.** Any changes will be thrown away. The repository is available for you to read, not to edit.
+2. **When you are finished**, write your complete final response to the file \`${RESPONSE_FILENAME}\` in the repository root. This file is your ONLY communication channel back to the calling agent. Include:
+   - Your analysis or answer
+   - Any important findings or decisions
+   - Any warnings or caveats
+3. You MUST create the \`${RESPONSE_FILENAME}\` file. It is how you report back.
+
+## YOUR TASK
+
+${userPrompt}`;
+  }
+
   return `## CRITICAL INSTRUCTIONS — READ BEFORE DOING ANYTHING
 
 You are operating as a subagent inside an isolated git worktree. Follow these rules:
 
 1. **NEVER push to any remote.** Do not run \`git push\` under any circumstances.
-2. **Commits are fine.** You may commit freely within this worktree.
-3. **When you are finished**, write your complete final response to the file \`${RESPONSE_FILENAME}\` in the repository root. This file is your ONLY communication channel back to the calling agent. Include:
+2. **When you are finished**, write your complete final response to the file \`${RESPONSE_FILENAME}\` in the repository root. This file is your ONLY communication channel back to the calling agent. Include:
    - A summary of what you did
    - Any important findings or decisions
    - Any warnings or caveats
-4. You MUST create the \`${RESPONSE_FILENAME}\` file even if you made no code changes. It is how you report back.
+3. You MUST create the \`${RESPONSE_FILENAME}\` file even if you made no code changes. It is how you report back.
 
 ## YOUR TASK
 

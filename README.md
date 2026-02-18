@@ -120,11 +120,13 @@ You can direct the model to pass any model name directly — GitHub Copilot CLI 
 | `prompt` | Yes | The task or question for the other model. Include relevant context. |
 | `model` | Yes | Which AI model to use (see list above). |
 | `working_directory` | Yes | Git repo directory to work in. Must be inside a git repository. Always pass this explicitly — the server's own working directory is not the user's workspace. |
+| `mode` | No | `"default"` returns the response and a unified diff of file changes. `"query"` discards all file changes and returns only the response — use for reviews, analysis, or questions. Default: `"default"`. |
 
 ## Safety
 
 - **Push protection**: The CLI is invoked with `--deny-tool 'shell(git push*)'` which blocks all push attempts at the tool level. The prompt also instructs the agent not to push.
 - **Worktree isolation**: All work happens in a temporary git worktree. Your working tree is never modified directly.
+- **Query mode**: When `mode` is `"query"`, all file changes in the worktree are discarded. The subagent is instructed that the repo is read-only. No git diff is returned.
 - **Automatic cleanup**: Worktrees are removed after each invocation, even on errors.
 - **No secrets exposure**: The subagent has the same access as `copilot` CLI running locally — no additional permissions are granted.
 
@@ -144,6 +146,51 @@ npm install
 npm run build     # Compile TypeScript
 npm test          # Run tests
 npm run dev       # Watch mode for development
+```
+
+### Testing a local build in VS Code
+
+If you have phone-a-friend installed globally (via `npx @bexelbie/phone-a-friend`), you need to point VS Code at your local build instead. Update your MCP configuration (`.vscode/mcp.json` or user-level `mcp.json`) to use `node` with the local dist path:
+
+```json
+{
+  "servers": {
+    "phone-a-friend": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/absolute/path/to/phone-a-friend/dist/index.js"
+      ],
+      "env": {}
+    }
+  }
+}
+```
+
+Replace `/absolute/path/to/phone-a-friend` with the actual path to your clone.
+
+After changing the config:
+
+1. Build your changes: `npm run build`
+2. In VS Code, open the Command Palette and run `MCP: List Servers`
+3. Select `phone-a-friend` and choose `Restart Server` to pick up the new code
+4. Test in Copilot Chat — the tool will now use your local build
+
+When you're done testing, revert the MCP config back to `npx`:
+
+```json
+{
+  "servers": {
+    "phone-a-friend": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@bexelbie/phone-a-friend"
+      ],
+      "env": {}
+    }
+  }
+}
 ```
 
 ## License

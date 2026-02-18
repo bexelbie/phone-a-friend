@@ -3,7 +3,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { wrapPrompt, generateWorktreePath, promptSizeWarning, shellEscape, PROMPT_SIZE_WARNING_THRESHOLD } from "../util.js";
+import { wrapPrompt, generateWorktreePath, promptSizeWarning, shellEscape, PROMPT_SIZE_WARNING_THRESHOLD, TOOL_MODES } from "../util.js";
 
 describe("wrapPrompt", () => {
   it("includes the user prompt", () => {
@@ -24,6 +24,54 @@ describe("wrapPrompt", () => {
   it("includes instruction to always create response file", () => {
     const result = wrapPrompt("Do something");
     assert.ok(result.includes("MUST create"));
+  });
+
+  it("does not include commits encouragement in default mode", () => {
+    const result = wrapPrompt("Do something");
+    assert.ok(!result.includes("Commits are fine"));
+  });
+
+  it("default mode matches behavior when mode is omitted", () => {
+    const withDefault = wrapPrompt("Do something", "default");
+    const withoutMode = wrapPrompt("Do something");
+    assert.equal(withDefault, withoutMode);
+  });
+
+  describe("query mode", () => {
+    it("includes the user prompt", () => {
+      const result = wrapPrompt("Review my code", "query");
+      assert.ok(result.includes("Review my code"));
+    });
+
+    it("includes the response filename instruction", () => {
+      const result = wrapPrompt("Review my code", "query");
+      assert.ok(result.includes(".paf-response.md"));
+    });
+
+    it("tells the subagent changes will be discarded", () => {
+      const result = wrapPrompt("Review my code", "query");
+      assert.ok(result.includes("discarded"));
+    });
+
+    it("tells the subagent not to modify files", () => {
+      const result = wrapPrompt("Review my code", "query");
+      assert.ok(result.includes("Do NOT modify files"));
+    });
+
+    it("does not include push restriction", () => {
+      const result = wrapPrompt("Review my code", "query");
+      assert.ok(!result.includes("git push"));
+    });
+
+    it("includes instruction to create the response file", () => {
+      const result = wrapPrompt("Review my code", "query");
+      assert.ok(result.includes("MUST create"));
+    });
+
+    it("mentions the repo is for reading only", () => {
+      const result = wrapPrompt("Review my code", "query");
+      assert.ok(result.includes("reference only"));
+    });
   });
 });
 

@@ -94,6 +94,24 @@ directory outside any git repo.
 
 ---
 
+## Test 6: Query mode (read-only analysis)
+
+**Goal:** Verify that query mode returns only the response with no diff
+section, even if the subagent makes file changes.
+
+**Parameters:**
+- model: `gpt-5-mini`
+- prompt: `Read src/util.ts and describe what each exported function does in one sentence each.`
+- working_directory: (this repo)
+- mode: `query`
+
+**Expected:**
+- Response: A coherent summary of the exported functions
+- No "File Changes" section in the output at all
+- No errors or warnings
+
+---
+
 ## Notes
 
 - Tests 1-4 all run in isolated worktrees, so they don't modify the

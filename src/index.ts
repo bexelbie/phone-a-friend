@@ -9,10 +9,12 @@ import { z } from "zod";
 import {
   RESPONSE_FILENAME,
   AVAILABLE_MODELS,
+  TOOL_MODES,
   wrapPrompt,
   generateWorktreePath,
   promptSizeWarning,
 } from "./util.js";
+import type { ToolMode } from "./util.js";
 import {
   isGitRepo,
   getGitRoot,
@@ -46,6 +48,7 @@ server.registerTool(
       "- The user wants a specific model for a subtask (e.g., a faster model for simple work, or a different vendor)\n" +
       "- The user mentions \"phone a friend\", \"subagent\", or \"different model\"\n" +
       "- The user wants to delegate a focused coding task to another model and get the changes back as a diff\n" +
+      "- Use mode \"query\" when you only want the agent's analysis — reviews, explanations, architectural assessments — not file changes\n" +
       "\n\nWhen NOT to use this tool:\n" +
       "- The current model can handle the task directly — don't add round-trip overhead for no benefit\n" +
       "- The task requires seeing uncommitted changes and the user hasn't provided the file contents\n" +
@@ -77,10 +80,20 @@ server.registerTool(
             "path from your conversation context — the server's own working " +
             "directory is not the user's workspace."
         ),
+      mode: z
+        .enum(TOOL_MODES)
+        .optional()
+        .default("default")
+        .describe(
+          '"default" returns the agent response and a unified diff of file changes. ' +
+            '"query" discards all file changes and returns only the agent response — ' +
+            "use for reviews, analysis, or questions where you don't need code changes."
+        ),
     }),
   },
-  async ({ prompt, model, working_directory }) => {
+  async ({ prompt, model, working_directory, mode }) => {
     const workDir = resolve(working_directory);
+    const toolMode: ToolMode = mode ?? "default";
 
     // Validate git repo
     if (!(await isGitRepo(workDir))) {
@@ -107,7 +120,7 @@ server.registerTool(
       const baseSha = await getHeadSha(worktreePath);
 
       // Run the CLI agent
-      const wrappedPrompt = wrapPrompt(prompt);
+      const wrappedPrompt = wrapPrompt(prompt, toolMode);
       const { exitCode, stderr } = await runCopilotCli(
         worktreePath,
         wrappedPrompt,
@@ -116,9 +129,6 @@ server.registerTool(
 
       // Read the response file before diffing
       const response = await readAndRemoveResponse(worktreePath, RESPONSE_FILENAME);
-
-      // Capture all file changes
-      const diff = await captureChanges(worktreePath, baseSha);
 
       // Build result
       const parts: string[] = [];
@@ -133,10 +143,14 @@ server.registerTool(
         );
       }
 
-      if (diff.trim()) {
-        parts.push("## File Changes (unified diff)\n\n```diff\n" + diff + "\n```");
-      } else {
-        parts.push("## File Changes\n\nNo file changes were made.");
+      // Capture and include file changes only in default mode
+      if (toolMode === "default") {
+        const diff = await captureChanges(worktreePath, baseSha);
+        if (diff.trim()) {
+          parts.push("## File Changes (unified diff)\n\n```diff\n" + diff + "\n```");
+        } else {
+          parts.push("## File Changes\n\nNo file changes were made.");
+        }
       }
 
       if (exitCode !== 0) {
