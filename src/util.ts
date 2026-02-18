@@ -6,6 +6,7 @@ import { join } from "node:path";
 export const RESPONSE_FILENAME = ".paf-response.md";
 
 export const AVAILABLE_MODELS = [
+  "claude-sonnet-4.6",
   "claude-sonnet-4.5",
   "claude-haiku-4.5",
   "claude-opus-4.6",
