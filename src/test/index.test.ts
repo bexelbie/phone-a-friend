@@ -3,7 +3,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { wrapPrompt, generateWorktreePath, promptSizeWarning, shellEscape, PROMPT_SIZE_WARNING_THRESHOLD, TOOL_MODES } from "../util.js";
+import { wrapPrompt, generateWorktreePath, promptSizeWarning, shellEscape, PROMPT_SIZE_WARNING_THRESHOLD } from "../util.js";
 
 describe("wrapPrompt", () => {
   it("includes the user prompt", () => {

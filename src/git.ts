@@ -132,8 +132,12 @@ export async function runCopilotCli(
       resolvePromise({ exitCode: code ?? 1, stderr });
     });
 
-    child.on("error", (err) => {
-      resolvePromise({ exitCode: 1, stderr: err.message });
+    child.on("error", (err: NodeJS.ErrnoException) => {
+      const message =
+        err.code === "ENOENT"
+          ? "Copilot CLI not found. Install it (https://docs.github.com/en/copilot/github-copilot-in-the-cli) and ensure 'copilot' is on your PATH."
+          : err.message;
+      resolvePromise({ exitCode: 1, stderr: message });
     });
   });
 }

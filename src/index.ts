@@ -3,6 +3,7 @@
 // ABOUTME: Enables cross-model subagent calls from VS Code Copilot Chat.
 
 import { resolve } from "node:path";
+import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -26,11 +27,14 @@ import {
   readAndRemoveResponse,
 } from "./git.js";
 
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
+
 // --- MCP Server Setup ---
 
 const server = new McpServer({
   name: "phone-a-friend",
-  version: "0.1.0",
+  version,
 });
 
 server.registerTool(
@@ -172,8 +176,11 @@ server.registerTool(
       // Always clean up the worktree
       try {
         await removeWorktree(gitRoot, worktreePath);
-      } catch {
-        // Best effort cleanup
+      } catch (err) {
+        console.error(
+          `[phone-a-friend] worktree cleanup failed for ${worktreePath}:`,
+          err instanceof Error ? err.message : err
+        );
       }
     }
   }
