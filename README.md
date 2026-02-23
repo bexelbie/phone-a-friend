@@ -132,8 +132,8 @@ You can direct the model to pass any model name directly — GitHub Copilot CLI 
 
 ## Known Limitations
 
-- **Blocks the calling agent**: MCP tool calls are synchronous — this is a property of the MCP protocol, not this tool. The calling agent waits for the subagent to finish before it can do anything else. Keep subtasks focused.
-- **Uncommitted changes**: The worktree is created from HEAD. Uncommitted changes in your working tree are not visible to the subagent. The calling agent's tool description instructs it to include relevant file contents in the prompt when needed.
+- **Blocks the calling agent**: MCP tool calls are synchronous — this is a property of the MCP protocol, not this tool. The calling agent waits for the subagent to finish before it can do anything else. Keep subtasks focused. This is identical to how subtasks work natively.
+- **Uncommitted changes**: The worktree is created from HEAD. Uncommitted changes in your working tree are not visible to the subagent. The calling agent's tool description instructs it to include relevant file contents in the prompt when needed. This is the way git worktrees are designed to function.
 - **Message-in-a-bottle compliance**: The subagent must follow instructions to write `.paf-response.md`. Most models do, but some may occasionally ignore the instruction.
 - **No streaming**: There is nothing to stream — the response is a file and a diff, both captured after the subagent finishes.
 
