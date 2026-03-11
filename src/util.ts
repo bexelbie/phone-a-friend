@@ -17,6 +17,7 @@ export const AVAILABLE_MODELS = [
   "claude-opus-4.5",
   "claude-sonnet-4",
   "gemini-3-pro-preview",
+  "gpt-5.4",
   "gpt-5.3-codex",
   "gpt-5.2-codex",
   "gpt-5.2",
