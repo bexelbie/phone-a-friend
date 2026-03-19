@@ -9,7 +9,6 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import {
   RESPONSE_FILENAME,
-  AVAILABLE_MODELS,
   TOOL_MODES,
   wrapPrompt,
   generateWorktreePath,
@@ -74,7 +73,9 @@ server.registerTool(
       model: z
         .string()
         .describe(
-          `The AI model to use. Available models: ${AVAILABLE_MODELS.join(", ")}`
+          "The AI model to use (e.g. claude-sonnet-4.5, gpt-5-mini). " +
+            "Pass any model supported by GitHub Copilot CLI — available " +
+            "models vary by subscription."
         ),
       working_directory: z
         .string()

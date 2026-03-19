@@ -105,13 +105,9 @@ The tool description tells the calling agent what it needs to know, but in short
 
 ### Available models
 
-The following models are available as of the latest release of this project. We try to check periodically, but if you discover models are missing, please open an issue or PR.
+The models available to you depend on your GitHub Copilot subscription. To see your personal model list, start an interactive Copilot CLI session and type `/model`. When using Phone a Friend, tell your agent which model to use — or provide a list of models in your prompt so it can choose appropriately.
 
-- `claude-sonnet-4.6`, `claude-sonnet-4.5`, `claude-haiku-4.5`, `claude-opus-4.6`, `claude-opus-4.6-fast`, `claude-opus-4.5`, `claude-sonnet-4`
-- `gemini-3-pro-preview`
-- `gpt-5.3-codex`, `gpt-5.2-codex`, `gpt-5.2`, `gpt-5.1-codex-max`, `gpt-5.1-codex`, `gpt-5.1`, `gpt-5.1-codex-mini`, `gpt-5-mini`, `gpt-4.1`
-
-You can direct the model to pass any model name directly — GitHub Copilot CLI validates it at runtime.
+You can pass any model name — GitHub Copilot CLI validates it at runtime.
 
 ## Tool Parameters
 
